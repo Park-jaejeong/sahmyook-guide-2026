@@ -388,6 +388,25 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 text-amber-600">필수 안내 사항 (줄바꿈으로 구분)</h2>
+                <textarea
+                  className="w-full h-40 p-4 border rounded-xl text-lg bg-amber-50"
+                  value={editForm.requirements?.join('\n') || ''}
+                  onChange={e => updateEditField('requirements', e.target.value.split('\n').filter(Boolean))}
+                />
+              </div>
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">주요 검사 (줄바꿈으로 구분)</h2>
+                <textarea
+                  className="w-full h-40 p-4 border rounded-xl text-lg bg-slate-50"
+                  value={editForm.tests?.join('\n') || ''}
+                  onChange={e => updateEditField('tests', e.target.value.split('\n').filter(Boolean))}
+                />
+              </div>
+            </div>
+
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
               <h2 className="text-xl font-bold text-gray-900 mb-4">접수/진료 시간 정보</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
