@@ -35,7 +35,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-6 py-5 text-lg font-medium transition-all duration-200 border-l-4
+    className={`w-full flex items-center gap-4 px-6 py-2.5 text-lg font-medium transition-all duration-200 border-l-4
       ${isActive 
         ? 'bg-blue-50 text-blue-800 border-blue-600' 
         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent'
@@ -211,16 +211,6 @@ const App: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleExport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(departments, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "hospital_data.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
-
   const updateEditField = (field: keyof Department, value: any) => {
     if (editForm) {
       setEditForm({ ...editForm, [field]: value });
@@ -267,33 +257,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-100 bg-slate-50">
-          <button 
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-4 px-5 py-4 w-full rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-              <Edit3 className="w-5 h-5 text-slate-500 group-hover:text-blue-600" />
-            </div>
-            <div>
-              <p className="text-base font-bold text-gray-900">안내 정보 수정</p>
-              <p className="text-xs text-blue-600 font-semibold">비밀번호 없이 즉시 수정</p>
-            </div>
-          </button>
-          
-          <button 
-            onClick={handleExport}
-            className="mt-3 flex items-center gap-4 px-5 py-4 w-full rounded-xl bg-slate-100 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-              <Save className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-base font-bold text-gray-900">데이터 내보내기 (JSON)</p>
-              <p className="text-xs text-emerald-700 font-medium tracking-tight">GitHub 업데이트용 파일 다운로드</p>
-            </div>
-          </button>
-        </div>
       </aside>
 
       {/* Mobile Sidebar Overlay */}
