@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  Search,
-  MapPin,
-  Phone,
-  Clock,
-  Calendar,
-  User,
-  AlertCircle,
-  Ban,
-  ChevronRight,
+import { 
+  Search, 
+  MapPin, 
+  Phone, 
+  Clock, 
+  Calendar, 
+  User, 
+  AlertCircle, 
+  Ban, 
+  ChevronRight, 
   BriefcaseMedical,
   Stethoscope,
   Activity,
@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { departments as initialData } from './data';
 import { Department, Doctor } from './types';
-import { db } from './firebase';
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 
 // --- Components ---
 
@@ -30,16 +28,16 @@ interface SidebarItemProps {
   onClick: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({
-  dept,
-  isActive,
-  onClick
+const SidebarItem: React.FC<SidebarItemProps> = ({ 
+  dept, 
+  isActive, 
+  onClick 
 }) => (
   <button
     onClick={onClick}
     className={`w-full flex items-center gap-4 px-6 py-5 text-lg font-medium transition-all duration-200 border-l-4
-      ${isActive
-        ? 'bg-blue-50 text-blue-800 border-blue-600'
+      ${isActive 
+        ? 'bg-blue-50 text-blue-800 border-blue-600' 
         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent'
       }`}
   >
@@ -76,11 +74,11 @@ interface InfoCardProps {
   className?: string;
 }
 
-const InfoCard: React.FC<InfoCardProps> = ({
-  title,
-  icon: Icon,
-  children,
-  className = ""
+const InfoCard: React.FC<InfoCardProps> = ({ 
+  title, 
+  icon: Icon, 
+  children, 
+  className = "" 
 }) => (
   <div className={`bg-white rounded-2xl p-8 shadow-sm border border-gray-200 ${className}`}>
     {title && (
@@ -117,7 +115,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => (
       {doctor.note && (
         <div className="pt-2 mt-2 border-t border-gray-100">
           <p className="text-sm text-red-500 font-medium flex items-center gap-1">
-            <AlertCircle size={14} /> {doctor.note}
+             <AlertCircle size={14} /> {doctor.note}
           </p>
         </div>
       )}
@@ -154,7 +152,18 @@ const InputField = ({ label, value, onChange }: { label: string, value: string, 
 // --- Main App Component ---
 
 const App: React.FC = () => {
-  const [departments, setDepartments] = useState<Department[]>(initialData);
+  // Initialize state from localStorage if available, otherwise use initialData
+  const [departments, setDepartments] = useState<Department[]>(() => {
+    try {
+      const savedData = localStorage.getItem('hospital_departments_data');
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+    } catch (e) {
+      console.error('Failed to load data from localStorage:', e);
+    }
+    return initialData;
+  });
 
   const [selectedId, setSelectedId] = useState<string>('fm');
   const [searchTerm, setSearchTerm] = useState('');
@@ -165,65 +174,51 @@ const App: React.FC = () => {
   const selectedIndex = useMemo(() => departments.findIndex(d => d.id === selectedId), [departments, selectedId]);
   const selectedDept = departments[selectedIndex];
 
-  // Fetch real-time data from Firestore
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'departments'), (snapshot) => {
-      const firestoreData: Record<string, any> = {};
-      snapshot.forEach(doc => {
-        firestoreData[doc.id] = doc.data();
-      });
-
-      if (Object.keys(firestoreData).length > 0) {
-        // Merge initialData with Firestore data to ensure all departments are present
-        const mergedData = initialData.map(dept => {
-          if (firestoreData[dept.id]) {
-            return { ...dept, ...firestoreData[dept.id] };
-          }
-          return dept;
-        });
-        setDepartments(mergedData);
-      }
-    });
-
-    return () => unsub();
-  }, []);
-
   // Sync edit form when selection changes (if not editing)
   useEffect(() => {
-    if (!isEditing && selectedDept) {
+    if (!isEditing) {
       setEditForm(JSON.parse(JSON.stringify(selectedDept)));
     }
   }, [selectedDept, isEditing]);
 
-  const filteredDepartments = useMemo(() =>
-    departments.filter(d =>
-      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredDepartments = useMemo(() => 
+    departments.filter(d => 
+      d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       d.code.toLowerCase().includes(searchTerm.toLowerCase())
     ),
-    [departments, searchTerm]);
+  [departments, searchTerm]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (editForm && selectedIndex !== -1) {
-      // Optimistically update local UI state
       const newDepartments = [...departments];
       newDepartments[selectedIndex] = editForm;
       setDepartments(newDepartments);
-
-      setIsEditing(false);
-
-      // Save changes to Firestore
+      
+      // Save changes to localStorage
       try {
-        await setDoc(doc(db, 'departments', editForm.id), editForm);
+        localStorage.setItem('hospital_departments_data', JSON.stringify(newDepartments));
       } catch (e) {
-        console.error('Failed to save data to Firestore:', e);
-        alert('저장에 실패했습니다. 권한이나 연결을 확인해주세요.');
+        console.error('Failed to save data to localStorage:', e);
+        alert('저장에 실패했습니다. 저장 공간을 확인해주세요.');
       }
+      
+      setIsEditing(false);
     }
   };
 
   const handleCancel = () => {
     setEditForm(JSON.parse(JSON.stringify(selectedDept)));
     setIsEditing(false);
+  };
+
+  const handleExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(departments, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "hospital_data.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
   const updateEditField = (field: keyof Department, value: any) => {
@@ -254,32 +249,48 @@ const App: React.FC = () => {
             />
           </div>
         </div>
-
+        
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white">
           <div className="mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest px-6 mt-2">Department List</div>
           <div className="space-y-1">
             {filteredDepartments.map(dept => (
-              <SidebarItem
-                key={dept.id}
-                dept={dept}
-                isActive={selectedId === dept.id}
+              <SidebarItem 
+                key={dept.id} 
+                dept={dept} 
+                isActive={selectedId === dept.id} 
                 onClick={() => {
                   setSelectedId(dept.id);
                   setIsEditing(false);
-                }}
+                }} 
               />
             ))}
           </div>
         </div>
 
         <div className="p-6 border-t border-gray-100 bg-slate-50">
-          <button className="flex items-center gap-4 px-5 py-4 w-full rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all text-left group">
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-4 px-5 py-4 w-full rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all text-left group"
+          >
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-              <User className="w-5 h-5 text-slate-500 group-hover:text-blue-600" />
+              <Edit3 className="w-5 h-5 text-slate-500 group-hover:text-blue-600" />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900">관리자 모드</p>
-              <p className="text-xs text-gray-500 font-medium">진료협력팀</p>
+              <p className="text-base font-bold text-gray-900">안내 정보 수정</p>
+              <p className="text-xs text-blue-600 font-semibold">비밀번호 없이 즉시 수정</p>
+            </div>
+          </button>
+          
+          <button 
+            onClick={handleExport}
+            className="mt-3 flex items-center gap-4 px-5 py-4 w-full rounded-xl bg-slate-100 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+              <Save className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-gray-900">데이터 내보내기 (JSON)</p>
+              <p className="text-xs text-emerald-700 font-medium tracking-tight">GitHub 업데이트용 파일 다운로드</p>
             </div>
           </button>
         </div>
@@ -289,20 +300,20 @@ const App: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="absolute left-0 top-0 w-[85%] max-w-sm h-full bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="mb-8 font-bold text-2xl text-slate-900 border-b pb-4">진료과 선택</div>
-            <div className="overflow-y-auto h-full pb-20 space-y-2">
+             <div className="mb-8 font-bold text-2xl text-slate-900 border-b pb-4">진료과 선택</div>
+             <div className="overflow-y-auto h-full pb-20 space-y-2">
               {filteredDepartments.map(dept => (
-                <SidebarItem
-                  key={dept.id}
-                  dept={dept}
-                  isActive={selectedId === dept.id}
+                <SidebarItem 
+                  key={dept.id} 
+                  dept={dept} 
+                  isActive={selectedId === dept.id} 
                   onClick={() => {
                     setSelectedId(dept.id);
                     setIsMobileMenuOpen(false);
-                  }}
+                  }} 
                 />
               ))}
-            </div>
+             </div>
           </div>
         </div>
       )}
@@ -323,13 +334,13 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             {isEditing ? (
               <>
-                <button
+                <button 
                   onClick={handleCancel}
                   className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-bold rounded-xl transition-colors flex items-center gap-2"
                 >
                   <X size={18} /> 취소
                 </button>
-                <button
+                <button 
                   onClick={handleSave}
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
                 >
@@ -337,12 +348,8 @@ const App: React.FC = () => {
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => {
-                  const pwd = window.prompt("관리자 비밀번호를 입력해주세요.");
-                  if (pwd === '0000') setIsEditing(true);
-                  else if (pwd !== null) alert("비밀번호가 일치하지 않습니다.");
-                }}
+              <button 
+                onClick={() => setIsEditing(true)}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition-all flex items-center gap-2"
               >
                 <Edit3 size={18} /> 정보 수정
@@ -372,7 +379,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">진료 과목 (쉼표로 구분)</h2>
-                <textarea
+                <textarea 
                   className="w-full h-40 p-4 border rounded-xl text-lg bg-slate-50"
                   value={editForm.subjects.join(', ')}
                   onChange={e => updateEditField('subjects', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
@@ -380,7 +387,7 @@ const App: React.FC = () => {
               </div>
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 text-red-600">진료 불가 항목 (줄바꿈으로 구분)</h2>
-                <textarea
+                <textarea 
                   className="w-full h-40 p-4 border rounded-xl text-lg bg-red-50"
                   value={editForm.impossible.join('\n')}
                   onChange={e => updateEditField('impossible', e.target.value.split('\n'))}
@@ -391,18 +398,18 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 text-amber-600">필수 안내 사항 (줄바꿈으로 구분)</h2>
-                <textarea
-                  className="w-full h-40 p-4 border rounded-xl text-lg bg-amber-50"
-                  value={editForm.requirements?.join('\n') || ''}
-                  onChange={e => updateEditField('requirements', e.target.value.split('\n').filter(Boolean))}
+                <textarea 
+                  className="w-full h-48 p-4 border border-amber-200 rounded-xl text-lg bg-amber-50/30"
+                  value={editForm.requirements.join('\n')}
+                  onChange={e => updateEditField('requirements', e.target.value.split('\n'))}
                 />
               </div>
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">주요 검사 (줄바꿈으로 구분)</h2>
-                <textarea
-                  className="w-full h-40 p-4 border rounded-xl text-lg bg-slate-50"
-                  value={editForm.tests?.join('\n') || ''}
-                  onChange={e => updateEditField('tests', e.target.value.split('\n').filter(Boolean))}
+                <h2 className="text-xl font-bold text-gray-900 mb-4 text-blue-600">주요 검사 항목 (줄바꿈으로 구분)</h2>
+                <textarea 
+                  className="w-full h-48 p-4 border border-blue-200 rounded-xl text-lg bg-blue-50/30"
+                  value={(editForm.tests || []).join('\n')}
+                  onChange={e => updateEditField('tests', e.target.value.split('\n'))}
                 />
               </div>
             </div>
@@ -410,14 +417,14 @@ const App: React.FC = () => {
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
               <h2 className="text-xl font-bold text-gray-900 mb-4">접수/진료 시간 정보</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputField label="초진 접수 마감" value={editForm.registration.firstVisit} onChange={v => updateEditField('registration', { ...editForm.registration, firstVisit: v })} />
-                <InputField label="재진 접수 마감" value={editForm.registration.reVisit} onChange={v => updateEditField('registration', { ...editForm.registration, reVisit: v })} />
+                <InputField label="초진 접수 마감" value={editForm.registration.firstVisit} onChange={v => updateEditField('registration', {...editForm.registration, firstVisit: v})} />
+                <InputField label="재진 접수 마감" value={editForm.registration.reVisit} onChange={v => updateEditField('registration', {...editForm.registration, reVisit: v})} />
                 <InputField label="정기 휴진 정보" value={editForm.breakInfo} onChange={v => updateEditField('breakInfo', v)} />
-                <InputField label="접수처 노트" value={editForm.registration.note || ''} onChange={v => updateEditField('registration', { ...editForm.registration, note: v })} />
+                <InputField label="접수처 노트" value={editForm.registration.note || ''} onChange={v => updateEditField('registration', {...editForm.registration, note: v})} />
               </div>
               <div className="mt-4">
                 <h3 className="font-bold text-sm text-gray-700 mb-2">기본 진료 시간 (줄바꿈으로 구분)</h3>
-                <textarea
+                <textarea 
                   className="w-full p-4 border rounded-xl text-lg bg-slate-50"
                   value={editForm.hours.join('\n')}
                   onChange={e => updateEditField('hours', e.target.value.split('\n'))}
@@ -429,7 +436,7 @@ const App: React.FC = () => {
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
               <h2 className="text-xl font-bold text-gray-900 mb-2">의료진 정보 (JSON 편집)</h2>
               <p className="text-sm text-gray-500 mb-4">의료진 정보는 데이터 구조 유지를 위해 JSON 형식으로 편집합니다.</p>
-              <textarea
+              <textarea 
                 className="w-full h-64 p-4 border border-gray-300 rounded-xl font-mono text-sm bg-slate-800 text-green-400"
                 value={JSON.stringify(editForm.doctors, null, 2)}
                 onChange={e => {
@@ -446,16 +453,16 @@ const App: React.FC = () => {
         ) : (
           /* --- VIEW MODE --- */
           <div className="p-6 md:p-10 w-full max-w-full mx-auto space-y-8 pb-32">
-
+            
             {/* Hero Card */}
             <div className="bg-white rounded-[2rem] p-10 shadow-lg border border-slate-100 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50 blur-3xl pointer-events-none"></div>
-
+              
               <div className="flex flex-col xl:flex-row justify-between gap-10 relative z-10">
                 <div className="flex-1 space-y-6">
                   <div>
                     <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-800 text-sm font-extrabold rounded-full mb-4 shadow-sm">
-                      <Activity size={16} /> 진료과 코드: {selectedDept.code}
+                       <Activity size={16} /> 진료과 코드: {selectedDept.code}
                     </span>
                     <h1 className="text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">{selectedDept.name}</h1>
                     <p className="text-xl text-slate-600 leading-relaxed max-w-4xl font-medium">
@@ -487,10 +494,10 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-
+              
               {/* Main Content Column */}
               <div className="xl:col-span-8 space-y-8">
-
+                
                 {/* Subjects */}
                 <InfoCard title="진료 과목 및 주요 질환" icon={BriefcaseMedical}>
                   <div className="flex flex-wrap gap-3">
@@ -502,46 +509,46 @@ const App: React.FC = () => {
 
                 {/* Doctors */}
                 <InfoCard title="의료진 소개" icon={User}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {selectedDept.doctors.map((doctor, idx) => (
                       <DoctorCard key={idx} doctor={doctor} />
                     ))}
-                  </div>
+                   </div>
                 </InfoCard>
 
-                {/* Hours Detail */}
-                <InfoCard title="기본 진료 시간 안내" icon={Calendar}>
-                  <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div>
-                        <span className="text-lg font-bold text-slate-900 block mb-3 border-b border-slate-200 pb-2">운영 시간</span>
-                        <div className="space-y-2">
-                          {selectedDept.hours.map((h, i) => (
-                            <div key={i} className="text-lg text-slate-700 flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                              {h}
+                 {/* Hours Detail */}
+                 <InfoCard title="기본 진료 시간 안내" icon={Calendar}>
+                    <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <div>
+                            <span className="text-lg font-bold text-slate-900 block mb-3 border-b border-slate-200 pb-2">운영 시간</span>
+                            <div className="space-y-2">
+                              {selectedDept.hours.map((h, i) => (
+                                <div key={i} className="text-lg text-slate-700 flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+                                  {h}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-lg font-bold text-red-600 block mb-3 border-b border-slate-200 pb-2">정기 휴진</span>
-                        <div className="text-lg text-slate-700 font-medium bg-white p-4 rounded-lg border border-slate-200 inline-block">
-                          {selectedDept.breakInfo}
-                        </div>
+                         </div>
+                         <div>
+                            <span className="text-lg font-bold text-red-600 block mb-3 border-b border-slate-200 pb-2">정기 휴진</span>
+                            <div className="text-lg text-slate-700 font-medium bg-white p-4 rounded-lg border border-slate-200 inline-block">
+                              {selectedDept.breakInfo}
+                            </div>
+                         </div>
                       </div>
                     </div>
-                  </div>
-                </InfoCard>
+                 </InfoCard>
 
-                {/* Requirements */}
-                {selectedDept.requirements.length > 0 && (
+                 {/* Requirements */}
+                 {selectedDept.requirements.length > 0 && (
                   <InfoCard title="필수 안내 사항" icon={AlertCircle} className="bg-amber-50/30 border-amber-100">
                     <ul className="grid grid-cols-1 gap-3">
                       {selectedDept.requirements.map((req, idx) => (
                         <li key={idx} className="flex items-start gap-3 p-4 bg-white rounded-xl border border-amber-100 shadow-sm text-lg text-slate-800">
-                          <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
-                          {req}
+                           <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+                           {req}
                         </li>
                       ))}
                     </ul>
@@ -551,23 +558,23 @@ const App: React.FC = () => {
 
               {/* Side Info Column */}
               <div className="xl:col-span-4 space-y-8">
-
+                
                 {/* Registration Deadline */}
                 <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-[2rem] p-8 border border-orange-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200 rounded-full -mr-10 -mt-10 opacity-20 blur-2xl"></div>
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200 rounded-full -mr-10 -mt-10 opacity-20 blur-2xl"></div>
                   <div className="flex items-center gap-3 mb-6 text-orange-800 relative z-10">
                     <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
                       <Clock size={28} />
                     </div>
                     <h3 className="font-extrabold text-2xl">접수 마감</h3>
                   </div>
-
+                  
                   <div className="space-y-4 relative z-10">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-orange-100/50">
                       <p className="text-sm font-bold text-orange-600 mb-2 uppercase tracking-wide">초진 (첫 방문)</p>
                       <p className="text-3xl font-black text-slate-900 tracking-tight">{selectedDept.registration.firstVisit}</p>
                     </div>
-
+                    
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-orange-100/50">
                       <p className="text-sm font-bold text-blue-600 mb-2 uppercase tracking-wide">재진</p>
                       <p className="text-3xl font-black text-slate-900 tracking-tight">{selectedDept.registration.reVisit}</p>
@@ -580,7 +587,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                   </div>
-
+                  
                   <p className="text-sm text-orange-700 mt-6 font-medium text-center bg-orange-100/50 py-2 rounded-lg">
                     * 대기 상황에 따라 조기 마감될 수 있습니다.
                   </p>
@@ -607,7 +614,7 @@ const App: React.FC = () => {
                 )}
 
                 {/* Tests (Optional) */}
-                {selectedDept.tests && selectedDept.tests.length > 0 && (
+                 {selectedDept.tests && selectedDept.tests.length > 0 && (
                   <div className="bg-slate-50 rounded-[2rem] p-8 border border-slate-200">
                     <div className="flex items-center gap-3 mb-6 text-slate-700">
                       <div className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm">
@@ -616,11 +623,11 @@ const App: React.FC = () => {
                       <h3 className="font-extrabold text-xl">주요 검사</h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedDept.tests.map((test, idx) => (
-                        <span key={idx} className="bg-white text-slate-700 text-base font-medium px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-                          {test}
-                        </span>
-                      ))}
+                       {selectedDept.tests.map((test, idx) => (
+                         <span key={idx} className="bg-white text-slate-700 text-base font-medium px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                           {test}
+                         </span>
+                       ))}
                     </div>
                   </div>
                 )}
